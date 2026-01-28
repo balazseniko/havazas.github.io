@@ -1,1 +1,2 @@
-balazseniko.github.io/havazas
+balazseniko.github.io/havazas.github.io
+
