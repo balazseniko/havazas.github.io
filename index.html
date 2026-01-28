@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Havazás Dashboard — Románia fókusz (valódi adatok) | Vega-Lite</title>
+
+  <!-- Vega stack -->
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+
+  <style>
+    :root{
+      --bg: #070b16;
+      --card: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.12);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.72);
+      --shadow: 0 18px 60px rgba(0,0,0,0.35);
+      --radius: 18px;
+      --max: 1200px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background:
+        radial-gradient(1200px 800px at 20% 0%, rgba(120,180,255,0.22), transparent 55%),
+        radial-gradient(900px 700px at 95% 20%, rgba(180,230,255,0.18), transparent 60%),
+        radial-gradient(900px 700px at 50% 110%, rgba(90,220,255,0.10), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      overflow-x:hidden;
+    }
+
+    /* Snow overlay (pure CSS) */
+    .snow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.65) 50%, transparent 55%),
+        radial-gradient(1.6px 1.6px at 80px 90px, rgba(255,255,255,0.55) 50%, transparent 55%),
+        radial-gradient(1.2px 1.2px at 140px 10px, rgba(255,255,255,0.45) 50%, transparent 55%),
+        radial-gradient(2.2px 2.2px at 200px 120px, rgba(255,255,255,0.60) 50%, transparent 55%),
+        radial-gradient(1.4px 1.4px at 260px 40px, rgba(255,255,255,0.50) 50%, transparent 55%);
+      background-size: 320px 220px;
+      opacity: 0.55;
+      filter: blur(0.2px);
+      animation: snowFall 14s linear infinite;
+    }
+    @keyframes snowFall {
+      from { transform: translateY(-40px); }
+      to   { transform: translateY(260px); }
+    }
+
+    header{
+      border-bottom: 1px solid var(--border);
+      padding: 42px 18px 22px;
+      position: relative;
+    }
+    .hero{
+      max-width: var(--max);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 980px){
+      .hero{ grid-template-columns: 1fr; }
+    }
+
+    h1{
+      margin:0 0 10px;
+      font-size: clamp(26px, 4vw, 44px);
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    .sub{
+      margin:0;
+      color: var(--muted);
+      max-width: 80ch;
+      line-height: 1.45;
+    }
+    .badges{
+      margin-top: 14px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .badge{
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .controls{
+      display: grid;
+      gap: 10px;
+    }
+    .row{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    label{
+      font-size: 13px;
+      color: var(--muted);
+    }
+    select, button{
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: var(--text);
+      padding: 9px 10px;
+      border-radius: 12px;
+      outline: none;
+      font-size: 14px;
+    }
+    button{
+      cursor: pointer;
+      transition: transform .06s ease;
+    }
+    button:active{ transform: translateY(1px); }
+    .small{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .status{
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    main{
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 18px 18px 52px;
+    }
+    .kpis{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .kpi{
+      grid-column: span 3;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    @media (max-width: 980px){
+      .kpi{ grid-column: span 6; }
+    }
+    @media (max-width: 520px){
+      .kpi{ grid-column: span 12; }
+    }
+    .kpi .t{
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .kpi .v{
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+    .card{
+      grid-column: span 6;
+      background: linear-gradient(180deg, var(--card), rgba(255,255,255,0.04));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 14px 10px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .card h2{
+      margin:0 0 4px;
+      font-size: 18px;
+    }
+    .hint{
+      margin:0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .viz{
+      width: 100%;
+      min-height: 320px;
+    }
+    @media (max-width: 980px){
+      .card{ grid-column: span 12; }
+    }
+
+    .footer{
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    code{
+      color: rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.07);
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="snow" aria-hidden="true"></div>
+
+  <header>
+    <section class="hero">
+      <div>
+        <h1>Havazás dashboard ❄️ — Románia fókusz</h1>
+        <p class="sub">
+          Valódi, napi “Snowfall Sum” adatok (Open-Meteo Historical Weather API) alapján.
+          Romániát (Bukarest + Kolozsvár) külön kiemeljük a kiválasztott európai városokhoz képest.
+        </p>
+        <div class="badges">
+          <span class="badge">Vega-Lite</span>
+          <span class="badge">Real data (Open-Meteo)</span>
+          <span class="badge">1 fájl / index.html</span>
+          <span class="badge">GitHub Pages ready</span>
+        </div>
+      </div>
+
+      <aside class="panel">
+        <div class="controls">
+          <div class="row">
+            <label for="preset">Időszak:</label>
+            <select id="preset">
+              <option value="last90">Utolsó ~90 nap (biztonságos késleltetéssel)</option>
+              <option value="winter">Tél (Dec 1 → utolsó elérhető nap)</option>
+              <option value="last30">Utolsó ~30 nap</option>
+            </select>
+            <button id="reload">Frissítés</button>
+          </div>
+          <div class="small">
+            Tipp: a “Historical” adatoknál lehet pár nap késleltetés, ezért a vége automatikusan
+            “ma − 6 nap”-ra van állítva.
+          </div>
+          <div id="status" class="status">Betöltésre kész.</div>
+        </div>
+      </aside>
+    </section>
+  </header>
+
+  <main>
+    <section class="kpis">
+      <div class="kpi">
+        <div class="t">Időszak</div>
+        <div class="v" id="kpiRange">—</div>
+      </div>
+      <div class="kpi">
+        <div class="t">Románia (Bucharest) össz. havazás</div>
+        <div class="v" id="kpiBucharest">—</div>
+      </div>
+      <div class="kpi">
+        <div class="t">Románia (Cluj) össz. havazás</div>
+        <div class="v" id="kpiCluj">—</div>
+      </div>
+      <div class="kpi">
+        <div class="t">Legnagyobb városi össz. havazás</div>
+        <div class="v" id="kpiTop">—</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>1) Város ranglista — összes havazás</h2>
+        <p class="hint">Románia (RO) kiemelve; a többi európai város összehasonlítás.</p>
+        <div id="chartRank" class="viz"></div>
+      </article>
+
+      <article class="card">
+        <h2>2) Napi havazás — Románia vs Európa átlag</h2>
+        <p class="hint">Bucharest & Cluj idősor + “Europe avg” (a listában szereplő városok átlaga).</p>
+        <div id="chartTimeseries" class="viz"></div>
+      </article>
+
+      <article class="card">
+        <h2>3) Hőtérkép — nap × város</h2>
+        <p class="hint">Hol voltak a “havas hullámok”? (gyors mintázat).</p>
+        <div id="chartHeatmap" class="viz"></div>
+      </article>
+
+      <article class="card">
+        <h2>4) Max hóvastagság (snow depth)</h2>
+        <p class="hint">Ha elérhető a modellből: max napi hóvastagság (cm).</p>
+        <div id="chartSnowDepth" class="viz"></div>
+      </article>
+    </section>
+
+    <div class="footer">
+      Forrás: Open-Meteo Historical Weather API (daily “Snowfall Sum”, “Snow depth”). :contentReference[oaicite:2]{index=2}
+      <br/>
+      Megjegyzés: reanalízis / modell-alapú becslés, városonként 1 koordinátapont (nem országos átlag).
+    </div>
+  </main>
+
+  <script>
+    // Városlista (koordináták): Románia kiemelve + európai összehasonlítás
+    const CITIES = [
+      { city: "Bucharest", country: "Romania", iso: "RO", lat: 44.4268, lon: 26.1025, highlight: true },
+      { city: "Cluj-Napoca", country: "Romania", iso: "RO", lat: 46.7712, lon: 23.6236, highlight: true },
+
+      { city: "Vienna", country: "Austria", iso: "AT", lat: 48.2082, lon: 16.3738 },
+      { city: "Budapest", country: "Hungary", iso: "HU", lat: 47.4979, lon: 19.0402 },
+      { city: "Warsaw", country: "Poland", iso: "PL", lat: 52.2297, lon: 21.0122 },
+      { city: "Prague", country: "Czechia", iso: "CZ", lat: 50.0755, lon: 14.4378 },
+      { city: "Berlin", country: "Germany", iso: "DE", lat: 52.52, lon: 13.4050 },
+      { city: "Paris", country: "France", iso: "FR", lat: 48.8566, lon: 2.3522 },
+      { city: "Rome", country: "Italy", iso: "IT", lat: 41.9028, lon: 12.4964 },
+      { city: "Madrid", country: "Spain", iso: "ES", lat: 40.4168, lon: -3.7038 },
+      { city: "London", country: "United Kingdom", iso: "GB", lat: 51.5072, lon: -0.1276 },
+      { city: "Stockholm", country: "Sweden", iso: "SE", lat: 59.3293, lon: 18.0686 },
+      { city: "Helsinki", country: "Finland", iso: "FI", lat: 60.1699, lon: 24.9384 },
+      { city: "Oslo", country: "Norway", iso: "NO", lat: 59.9139, lon: 10.7522 },
+    ];
+
+    const embedOptions = {
+      actions: { export: true, source: false, compiled: false, editor: false },
+      renderer: "canvas"
+    };
+
+    const statusEl = document.getElementById("status");
+
+    function fmtDate(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${day}`;
+    }
+
+    function getRange(preset){
+      const now = new Date();
+      // historical API késleltetés miatt: end = ma - 6 nap
+      const end = new Date(now);
+      end.setDate(end.getDate() - 6);
+
+      let start = new Date(end);
+
+      if (preset === "last30"){
+        start.setDate(start.getDate() - 29);
+      } else if (preset === "winter"){
+        // Dec 1 of current winter season:
+        // ha Jan/Feb/Mar, akkor előző év Dec 1; különben idei Dec 1 (de itt január van tipikusan)
+        const y = end.getFullYear();
+        const m = end.getMonth(); // 0=Jan
+        const decYear = (m <= 2) ? (y - 1) : y;
+        start = new Date(decYear, 11, 1);
+      } else {
+        // last90 default
+        start.setDate(start.getDate() - 89);
+      }
+
+      return { start: fmtDate(start), end: fmtDate(end) };
+    }
+
+    async function fetchSnowData({start, end}){
+      // Open-Meteo Historical Weather API supports multiple coordinates in one request :contentReference[oaicite:3]{index=3}
+      const lats = CITIES.map(c => c.lat).join(",");
+      const lons = CITIES.map(c => c.lon).join(",");
+
+      // daily variables: snowfall_sum + snow_depth_max
+      // units: precipitation unit is mm by default; snowfall is typically in cm water-equivalent? In docs it’s “Snowfall Sum” as daily var. :contentReference[oaicite:4]{index=4}
+      const url = new URL("https://archive-api.open-meteo.com/v1/archive");
+      url.searchParams.set("latitude", lats);
+      url.searchParams.set("longitude", lons);
+      url.searchParams.set("start_date", start);
+      url.searchParams.set("end_date", end);
+      url.searchParams.set("daily", "snowfall_sum,snow_depth_max");
+      url.searchParams.set("timezone", "Europe/Bucharest");
+
+      // Keep it simple: fetch JSON
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error(`API hiba: ${res.status} ${res.statusText}`);
+      const json = await res.json();
+      return json;
+    }
+
+    function normalizeToRows(apiJson){
+      // Multiple coordinates => response is array-like structures (daily per location_id) :contentReference[oaicite:5]{index=5}
+      const locations = Array.isArray(apiJson) ? apiJson : (apiJson?.daily?.time ? [apiJson] : apiJson);
+      // Open-Meteo multi-location response: { latitude:[..], longitude:[..], daily:{ time:[..], snowfall_sum:[..], snow_depth_max:[..] }, ... }
+      // But in practice: it returns one object with daily arrays + location_id when csv/xlsx.
+      // For JSON multi-loc: it's usually an array of objects. We'll handle both.
+      let rows = [];
+
+      if (Array.isArray(apiJson)) {
+        apiJson.forEach((locObj, idx) => {
+          const cityMeta = CITIES[idx];
+          const times = locObj?.daily?.time || [];
+          const snowfall = locObj?.daily?.snowfall_sum || [];
+          const depth = locObj?.daily?.snow_depth_max || [];
+          for (let i=0;i<times.length;i++){
+            rows.push({
+              date: times[i],
+              city: cityMeta.city,
+              country: cityMeta.country,
+              iso: cityMeta.iso,
+              is_ro: cityMeta.iso === "RO",
+              highlight: !!cityMeta.highlight,
+              snowfall_sum: snowfall[i] ?? null,
+              snow_depth_max: depth[i] ?? null
+            });
+          }
+        });
+        return rows;
+      }
+
+      // Single object variant: might include daily arrays with shape [time][location] (rare), or only one location.
+      // We'll attempt to detect if snowfall_sum is 2D (array of arrays).
+      const daily = apiJson.daily;
+      if (!daily) return rows;
+
+      const times = daily.time || [];
+      const snowfall = daily.snowfall_sum || [];
+      const depth = daily.snow_depth_max || [];
+
+      const is2D = Array.isArray(snowfall[0]); // [loc][time] or [time][loc] depends; assume [loc][time]
+      if (is2D) {
+        // assume snowfall[locIndex][timeIndex]
+        for (let loc=0; loc<CITIES.length; loc++){
+          for (let i=0;i<times.length;i++){
+            rows.push({
+              date: times[i],
+              city: CITIES[loc].city,
+              country: CITIES[loc].country,
+              iso: CITIES[loc].iso,
+              is_ro: CITIES[loc].iso === "RO",
+              highlight: !!CITIES[loc].highlight,
+              snowfall_sum: snowfall[loc]?.[i] ?? null,
+              snow_depth_max: depth[loc]?.[i] ?? null
+            });
+          }
+        }
+        return rows;
+      }
+
+      // fallback: one location only
+      for (let i=0;i<times.length;i++){
+        rows.push({
+          date: times[i],
+          city: CITIES[0].city,
+          country: CITIES[0].country,
+          iso: CITIES[0].iso,
+          is_ro: true,
+          highlight: true,
+          snowfall_sum: snowfall[i] ?? null,
+          snow_depth_max: depth[i] ?? null
+        });
+      }
+      return rows;
+    }
+
+    function sum(arr){ return arr.reduce((a,b)=>a + (Number.isFinite(b)?b:0), 0); }
+    function max(arr){ return arr.reduce((m,v)=> (Number.isFinite(v) && v>m ? v : m), -Infinity); }
+
+    function setKpis(rows, range){
+      document.getElementById("kpiRange").textContent = `${range.start} → ${range.end}`;
+
+      const byCity = new Map();
+      for (const r of rows){
+        if (!byCity.has(r.city)) byCity.set(r.city, { snow: 0, depthMax: -Infinity });
+        const v = byCity.get(r.city);
+        v.snow += Number.isFinite(r.snowfall_sum) ? r.snowfall_sum : 0;
+        if (Number.isFinite(r.snow_depth_max)) v.depthMax = Math.max(v.depthMax, r.snow_depth_max);
+      }
+
+      const buch = byCity.get("Bucharest")?.snow ?? 0;
+      const cluj = byCity.get("Cluj-Napoca")?.snow ?? 0;
+
+      // Top city
+      let topCity = "—";
+      let topVal = -1;
+      for (const [city, v] of byCity.entries()){
+        if (v.snow > topVal){ topVal = v.snow; topCity = city; }
+      }
+
+      document.getElementById("kpiBucharest").textContent = `${buch.toFixed(1)}`;
+      document.getElementById("kpiCluj").textContent = `${cluj.toFixed(1)}`;
+      document.getElementById("kpiTop").textContent = `${topCity} (${topVal.toFixed(1)})`;
+    }
+
+    function buildEuropeAvg(rows){
+      // daily average across all cities (simple average of available values)
+      const byDate = new Map();
+      for (const r of rows){
+        if (!byDate.has(r.date)) byDate.set(r.date, []);
+        if (Number.isFinite(r.snowfall_sum)) byDate.get(r.date).push(r.snowfall_sum);
+      }
+      const out = [];
+      for (const [date, vals] of byDate.entries()){
+        const avg = vals.length ? (sum(vals)/vals.length) : null;
+        out.push({ date, series: "Europe avg", snowfall_sum: avg, highlight: false, iso: "EU" });
+      }
+      return out;
+    }
+
+    async function renderAll(rows){
+      const europeAvg = buildEuropeAvg(rows);
+
+      // 1) Rank (sum snowfall) — Romania highlight with opacity/label
+      const rankSpec = {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        width: "container",
+        height: 300,
+        data: { values: rows },
+        transform: [
+          { aggregate: [{ op: "sum", field: "snowfall_sum", as: "snow_total" }], groupby: ["city","country","iso","is_ro","highlight"] },
+          { calculate: "datum.city + ' • ' + datum.iso", as: "label" }
+        ],
+        mark: { type: "bar" },
+        encoding: {
+          y: { field: "label", type: "nominal", sort: "-x", title: "" },
+          x: { field: "snow_total", type: "quantitative", title: "Összes havazás (Snowfall Sum)" },
+          opacity: { condition: { test: "datum.is_ro", value: 1 }, value: 0.55 },
+          tooltip: [
+            { field: "city", title: "Város" },
+            { field: "country", title: "Ország" },
+            { field: "snow_total", title: "Összes havazás" }
+          ]
+        },
+        config: { background: "transparent" }
+      };
+
+      // 2) Timeseries: Bucharest + Cluj + Europe avg
+      const roSeries = rows
+        .filter(r => r.city === "Bucharest" || r.city === "Cluj-Napoca")
+        .map(r => ({ date: r.date, series: r.city, snowfall_sum: r.snowfall_sum, highlight: true, iso: r.iso }));
+
+      const tsData = [...roSeries, ...europeAvg];
+
+      const tsSpec = {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        width: "container",
+        height: 300,
+        data: { values: tsData },
+        mark: { type: "line", point: false },
+        encoding: {
+          x: { field: "date", type: "temporal", title: "Dátum" },
+          y: { field: "snowfall_sum", type: "quantitative", title: "Napi havazás (Snowfall Sum)" },
+          color: { field: "series", type: "nominal", title: "" },
+          strokeWidth: {
+            condition: { test: "datum.series === 'Europe avg'", value: 2 },
+            value: 3
+          },
+          opacity: {
+            condition: { test: "datum.series === 'Europe avg'", value: 0.65 },
+            value: 1
+          },
+          tooltip: [
+            { field: "series", title: "Sorozat" },
+            { field: "date", title: "Dátum" },
+            { field: "snowfall_sum", title: "Havazás" }
+          ]
+        },
+        config: { background: "transparent" }
+      };
+
+      // 3) Heatmap: date x city
+      const heatSpec = {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        width: "container",
+        height: 300,
+        data: { values: rows },
+        transform: [
+          { calculate: "datum.city + ' • ' + datum.iso", as: "label" }
+        ],
+        mark: { type: "rect" },
+        encoding: {
+          x: { field: "date", type: "temporal", title: "Dátum" },
+          y: { field: "label", type: "nominal", title: "" },
+          color: { field: "snowfall_sum", type: "quantitative", title: "Havazás" },
+          opacity: { condition: { test: "datum.is_ro", value: 1 }, value: 0.85 },
+          tooltip: [
+            { field: "city", title: "Város" },
+            { field: "country", title: "Ország" },
+            { field: "date", title: "Dátum" },
+            { field: "snowfall_sum", title: "Havazás" }
+          ]
+        },
+        config: { background: "transparent" }
+      };
+
+      // 4) Snow depth max (if available)
+      const depthSpec = {
+        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+        width: "container",
+        height: 300,
+        data: { values: rows },
+        transform: [
+          { aggregate: [{ op: "max", field: "snow_depth_max", as: "depth_max" }], groupby: ["city","country","iso","is_ro"] },
+          { calculate: "datum.city + ' • ' + datum.iso", as: "label" }
+        ],
+        mark: { type: "bar" },
+        encoding: {
+          y: { field: "label", type: "nominal", sort: "-x", title: "" },
+          x: { field: "depth_max", type: "quantitative", title: "Max hóvastagság (snow_depth_max)" },
+          opacity: { condition: { test: "datum.is_ro", value: 1 }, value: 0.55 },
+          tooltip: [
+            { field: "city", title: "Város" },
+            { field: "country", title: "Ország" },
+            { field: "depth_max", title: "Max hóvastagság" }
+          ]
+        },
+        config: { background: "transparent" }
+      };
+
+      await vegaEmbed("#chartRank", rankSpec, embedOptions);
+      await vegaEmbed("#chartTimeseries", tsSpec, embedOptions);
+      await vegaEmbed("#chartHeatmap", heatSpec, embedOptions);
+      await vegaEmbed("#chartSnowDepth", depthSpec, embedOptions);
+    }
+
+    async function run(){
+      const preset = document.getElementById("preset").value;
+      const range = getRange(preset);
+
+      statusEl.textContent = `Adatok lekérése: ${range.start} → ${range.end} …`;
+      try{
+        const json = await fetchSnowData(range);
+        const rows = normalizeToRows(json);
+
+        if (!rows.length) {
+          statusEl.textContent = "Nincs adat (üres válasz). Próbáld meg másik időszakkal.";
+          return;
+        }
+
+        setKpis(rows, range);
+        statusEl.textContent = `OK ✅ Betöltve: ${rows.length} sor (napi adatok × városok).`;
+        await renderAll(rows);
+      } catch(err){
+        console.error(err);
+        statusEl.textContent = `Hiba ❌ ${err.message}. (Ha 429: túl sok kérés, várj kicsit és próbáld újra.)`;
+      }
+    }
+
+    document.getElementById("reload").addEventListener("click", run);
+    document.getElementById("preset").addEventListener("change", run);
+
+    run();
+  </script>
+</body>
+</html>
